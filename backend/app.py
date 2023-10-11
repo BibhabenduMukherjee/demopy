@@ -159,7 +159,7 @@ if __name__ == '__main__':
     
     debug = False
     # debug = True
-    port = 7676
+    port = 3001
 
     app.run(
         debug=debug,
