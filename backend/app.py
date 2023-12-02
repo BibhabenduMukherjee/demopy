@@ -1,4 +1,6 @@
-from flask import Flask, request
+import csv
+
+from flask import Flask, request,jsonify, send_file
 from flask_cors import CORS
 import glob
 import json
@@ -9,7 +11,7 @@ CORS(app)
 
 df = None
 cols, dateColName, closeColName = None, None, None
-train_size = 0.75
+train_size = 0.80
 totalEpochs = 2
 
 session = {
@@ -25,6 +27,12 @@ session = {
     }
 }
 
+sessioninfopre = {
+    "pretrained":
+        {
+"status" : "ok"
+}}
+
 
 def updateEpochs(epoch):
     global session
@@ -38,6 +46,95 @@ from api import *
 @app.route("/")
 def index():
     return "Welcome to Stock Price Prediction API"
+
+
+@app.route('/download_data', methods=['GET'])
+def download_data():
+    filename = request.args.get('filename')
+    if not filename:
+        return "Filename not provided", 400
+
+    file_path = os.path.join('datasets', f'{filename}.csv')
+
+    if not os.path.exists(file_path):
+        return "File not found", 404
+
+    return send_file(file_path, as_attachment=True)
+@app.route('/modelname', methods=['GET'])
+def get_model_name():
+    # Access the 'a' query parameter from the URL
+    global sessioninfopre
+    anyname = request.args.get('a')
+    print(anyname)
+    df = pd.read_csv('./datasets/' + anyname + '.csv')
+    print(df.shape)
+    opencol, trunovercol, datecol, closecol, highcol = getRequiredColumnsForPredefined(df)
+
+    if anyname:
+        dfOpenValPre = []
+        dfCloseValPre = []
+        dfDateValPre = []
+        dfTurnoverValPre = []
+        dfHighValPre = []
+
+        for row in df[datecol].values:
+            dfDateValPre.append(row)
+        for row in df[opencol].values:
+            dfOpenValPre.append(row)
+        for row in df[trunovercol].values:
+            dfTurnoverValPre.append(row)
+        for row in df[closecol].values:
+            dfCloseValPre.append(row)
+        for row in df[highcol].values:
+            dfHighValPre.append(row)
+
+        dfTurnoverValPre = [float(x) for x in dfTurnoverValPre]
+
+        sessioninfopre['pretrained']['dates'] = dfDateValPre[0:400]
+        sessioninfopre['pretrained']['openval'] = dfOpenValPre[0:400]
+        sessioninfopre['pretrained']['turnover'] = dfTurnoverValPre[0:400]
+        sessioninfopre['pretrained']['closeval'] = dfCloseValPre[0:400]
+        sessioninfopre['pretrained']['highval'] = dfHighValPre[0:400]
+
+        return sessioninfopre["pretrained"]
+    else:
+        return 'No model name provided in the query parameter.'
+    # return  "hello"
+
+
+@app.route('/save_data', methods=['POST'])
+def save_data():
+    try:
+        data = request.get_json()  # Get the JSON data from the request
+        filename = request.args.get('filename')  # Get the filename from the request
+        print(data)
+        if not filename:
+            return "Filename not provided", 400
+
+        # Specify the directory where you want to save the CSV file
+        save_directory = 'datasets'
+        if not os.path.exists(save_directory):
+            os.makedirs(save_directory)
+
+        # Create the full path for the CSV file
+        file_path = os.path.join(save_directory, f'{filename}.csv')
+
+        # Check if the file already exists
+        if os.path.exists(file_path):
+            return "File already exists", 409  # Conflict status code
+
+        # Write data to a CSV file
+        with open(file_path, 'w', newline='') as file:
+            csv_writer = csv.DictWriter(file, fieldnames=data[0].keys())
+            csv_writer.writeheader()
+            for row in data:
+                csv_writer.writerow(row)
+
+        return "Data saved as CSV successfully", 200
+
+    except Exception as e:
+        return str(e), 500
+
 
 @app.route("/upload", methods=['POST', 'GET'])
 def upload():

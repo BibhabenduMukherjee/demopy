@@ -26,6 +26,38 @@ def getColumnsData(df, cols):
     print("Retriving", ' '.join(cols), "Columnn(s)")
     return df[cols]
 
+def getRequiredColumnsForPredefined(df):
+
+    dateColName = None
+    closeColName = None
+    turnOverColName = None
+    openColName = None
+    highColName = None
+    for col in df.columns:
+        if (('date' in col.lower()) or ('time' in col.lower())):
+            dateColName = col
+            break
+    for col in df.columns:
+        if (('turnover' in col.lower()) or ('volume' in col.lower())):
+          turnOverColName = col
+          break
+    for col in df.columns:
+        if ('open' in col.lower()):
+          openColName = col
+          break
+    for col in df.columns:
+        if ('close' in col.lower()):
+          closeColName = col
+          break
+    for col in df.columns:
+        if ('high' in col.lower()):
+          highColName = col
+          break
+
+
+    return openColName, turnOverColName, dateColName , closeColName , highColName
+
+
 def getRequiredColumns(df):
     res = []
     dateColName = None
@@ -152,8 +184,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 def LSTMAlgorithm(fileName, train_size, epochs, updateEpochs):
     df = pd.read_csv('./datasets/' + fileName + '.csv')
     cols, dateColName, trade_close_col = getRequiredColumns(df)
-
-
     scaling_data_frame = df.filter(cols)
 
     scaler = MinMaxScaler(feature_range=(0,1))
@@ -199,26 +229,6 @@ def LSTMAlgorithm(fileName, train_size, epochs, updateEpochs):
     print("Saving Model--------------------------------------------->")
     
     model.save('pretrained/' + fileName + ".h5")
-
-    # predictions = model.predict(Xtest)
-    # predictions = scaler.inverse_transform(predictions)
-
-    # training = stock_close_data[:trainingDataLength]
-    # validation = pd.DataFrame(df[trade_close_col][trainingDataLength:], columns=['Close'])
-
-    # validation['Predictions'] = predictions
-
-
-    # real = validation['Close'].values
-    # pred = validation['Predictions'].values
-    # n = len(pred)
-
-    # accuracy = 0
-    # for i in range(n):
-    #     accuracy += (abs(real[i] - pred[i])/real[i])*100
-
-    # print('For', epochs, "epochs")
-    # print("Accuracy:", 100 - accuracy/n, end='\n\n')
 
     return model
 
